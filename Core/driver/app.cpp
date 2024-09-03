@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <cstdio>
 
+#include "CANFD.hpp"
+
 Application app;
 
 int32_t get_encoder1( void )
@@ -70,55 +72,61 @@ int32_t get_encoder4( void )
 
 int Application::Initilized()
 {
+	canfd = new CANFD(&hfdcan1);
+	canfd->init();
 
-	  pid1.set_limit(10, 900);
-	  //pid1.set_gain(5,3,0.2);
-	  pid1.set_gain(0.3,2,0.2);
-	  pid2.set_limit(10, 900);
-	  //pid2.set_gain(5,3,0.2);
-	  pid2.set_gain(0.3,2,0.2);
+	CANFD_Frame test;
+	test.id=10;
+	canfd->tx(test);
 
-	  pid3.set_limit(10, 900);
-	  //pid1.set_gain(5,3,0.2);
-	  pid3.set_gain(0.3,2,0.2);
-	  pid4.set_limit(10, 900);
-	  //pid2.set_gain(5,3,0.2);
-	  pid4.set_gain(0.3,2,0.2);
+	pid1.set_limit(10, 900);
+	pid1.set_gain(5,3,0.2);
+	//pid1.set_gain(0.3,2,0.2);
+	pid2.set_limit(10, 900);
+	//pid2.set_gain(5,3,0.2);
+	pid2.set_gain(0.3,2,0.2);
 
-	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-	  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-	  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-	  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
-	  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+	pid3.set_limit(10, 900);
+	 //pid1.set_gain(5,3,0.2);
+	pid3.set_gain(0.3,2,0.2);
+	pid4.set_limit(10, 900);
+	//pid2.set_gain(5,3,0.2);
+	pid4.set_gain(0.3,2,0.2);
 
-	  HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
-	  HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
-	  HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL);
-	  HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+
+	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+	HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
+	HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL);
+	HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL);
 
 
-	  if (HAL_ADC_Init(&hadc3) != HAL_OK)
-	   {
+	if (HAL_ADC_Init(&hadc3) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* Run the ADC calibration in single-ended mode */
+	/* Run the ADC calibration in single-ended mode */
+	if (HAL_ADCEx_Calibration_Start(&hadc3, ADC_SINGLE_ENDED) != HAL_OK)
+	{
+	 /* Calibration Error */
+		Error_Handler();
+	}
+
+	/*##-3- Start the conversion process #######################################*/
+	if (HAL_ADC_Start(&hadc3) != HAL_OK)
+	{
+		/* Start Conversation Error */
 	     Error_Handler();
-	   }
-	   /* Run the ADC calibration in single-ended mode */
-	   /* Run the ADC calibration in single-ended mode */
-	   if (HAL_ADCEx_Calibration_Start(&hadc3, ADC_SINGLE_ENDED) != HAL_OK)
-	   {
-	     /* Calibration Error */
-	     Error_Handler();
-	   }
-
-	   /*##-3- Start the conversion process #######################################*/
-	   if (HAL_ADC_Start(&hadc3) != HAL_OK)
-	   {
-	     /* Start Conversation Error */
-	     Error_Handler();
-	   }
-	   return 1;
+	}
+	return 1;
 }
 
 int Application::loop()
@@ -129,7 +137,7 @@ int Application::loop()
 	while(1) {
 		 int32_t encoder = get_encoder1();
 		 int pwm = (int)pid1.calc(100.0, (float)encoder);
-		 __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, pwm);
+		 __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 100);
 
 		 int32_t encoder2 = get_encoder2();
 		 pwm = (int)pid2.calc(100.0, (float)encoder2);
@@ -149,5 +157,4 @@ int Application::loop()
 	}
 }
 
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
-}
+

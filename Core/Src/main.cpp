@@ -105,6 +105,11 @@ int main(void)
   /* USER CODE END 2 */
 }
 
+extern "C" void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+  if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
+	  canfd->rx_interrupt_task();
+  }
+}
 /**
   * @brief System Clock Configuration
   * @retval None

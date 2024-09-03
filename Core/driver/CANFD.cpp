@@ -1,60 +1,69 @@
-/*#include "CANFD.hpp"
+#include "CANFD.hpp"
+#include "fdcan.h"
 
-//tx//////////////////////////////////////////////////////////////////////
-bool CANFD::tx(CANFD_Frame &tx_data){
-	  fdcan1TxHeader.Identifier = 0x1;
-	  fdcan1TxHeader.IdType = FDCAN_STANDARD_ID;
-	  fdcan1TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-	  fdcan1TxHeader.DataLength = FDCAN_DLC_BYTES_32;
-	  fdcan1TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-	  fdcan1TxHeader.BitRateSwitch = FDCAN_BRS_ON;
-	  fdcan1TxHeader.FDFormat = FDCAN_FD_CAN;
-	  fdcan1TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-	  fdcan1TxHeader.MessageMarker = 0;
+CANFD *canfd;
 
-	  // Configure TX Header for FDCAN2
-	  fdcan2TxHeader.Identifier = 0x2;
-	  fdcan2TxHeader.IdType = FDCAN_STANDARD_ID;
-	  fdcan2TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-	  fdcan2TxHeader.DataLength = FDCAN_DLC_BYTES_32;
-	  fdcan2TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-	  fdcan2TxHeader.BitRateSwitch = FDCAN_BRS_ON;
-	  fdcan2TxHeader.FDFormat = FDCAN_FD_CAN;
-	  fdcan2TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-	  fdcan2TxHeader.MessageMarker = 0;
-
-	  // Prepare first Tx data for fdcan1
-	  for (int32_t i = 0; i < dataLen; i++) {
-		  fdcan1TxData[i] = 1;
-	  }
-
-	  // Put Tx data to Txfifo
-	  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &fdcan1TxHeader, fdcan1TxData)!= HAL_OK) {
-		  printf("HAL_FDCAN_AddMessageToTxFifoQ\r\n");
-		  Error_Handler();
-	  }
+void CANFD::init(){
+	if(HAL_FDCAN_Start(fdcan_)!= HAL_OK) {
+		Error_Handler();
+	}
+	if (HAL_FDCAN_ActivateNotification(fdcan_, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK) {
+	   /* Notification Error */
+	   Error_Handler();
+	}
 }
 
-//rx//////////////////////////////////////////////////////////////////////////////////////////
+bool CANFD::tx(CANFD_Frame &tx_data){
+	FDCAN_TxHeaderTypeDef	TxHeader;
+	TxHeader.Identifier = tx_data.id;
+	TxHeader.IdType = FDCAN_STANDARD_ID;
+	TxHeader.TxFrameType = FDCAN_DATA_FRAME;
+	TxHeader.DataLength = FDCAN_DLC_BYTES_32;
+	TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+	TxHeader.BitRateSwitch = FDCAN_BRS_ON;
+	TxHeader.FDFormat = FDCAN_FD_CAN;
+	TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+	TxHeader.MessageMarker = 0;
+
+	// Prepare first Tx data for fdcan1
+	for (size_t i = 0; i < tx_data.size; i++) {
+		TxData[i] = tx_data.data[i];
+	}
+
+	// Put Tx data to Txfifo
+	if (HAL_FDCAN_AddMessageToTxFifoQ(fdcan_, &TxHeader, TxData)!= HAL_OK) {
+		Error_Handler();
+	}
+}
+
 uint32_t CANFD::rx_available(void){
 	uint32_t count = 0;
 	for(uint32_t i = 0; i < CAN_RX_BUFF_N;i++){
 		if(!rx_buff[i].is_free) count ++;
 	}
 	return count;
-}*/
-/*void CANFD::rx_interrupt_task(void){
-	CAN_RxHeaderTypeDef rx_header;
+}
 
-	HAL_CAN_GetRxMessage(can, rx_fifo, &rx_header, rx_buff[head].data);
-	rx_buff[head].is_remote = (rx_header.RTR == CAN_RTR_DATA)? false : true;
-	rx_buff[head].id = (rx_header.IDE == CAN_ID_STD)? rx_header.StdId : rx_header.ExtId;
-	rx_buff[head].is_ext_id = (rx_header.IDE == CAN_ID_STD)? false : true;
-	rx_buff[head].size = rx_header.DLC;
+void CANFD::rx_interrupt_task(void){
+	FDCAN_RxHeaderTypeDef	RxHeader;
+	uint8_t		fdcan1RxData[64];
+
+    if (HAL_FDCAN_GetRxMessage(fdcan_, FDCAN_RX_FIFO0, &RxHeader, fdcan1RxData) != HAL_OK) {
+		Error_Handler();
+    }
+
+    if (HAL_FDCAN_ActivateNotification(fdcan_, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
+          /* Notification Error */
+    	Error_Handler();
+    }
+
+	rx_buff[head].id = RxHeader.Identifier;
+	rx_buff[head].size = RxHeader.DataLength;
 	rx_buff[head].is_free = false;
 
 	head = (head+1)&CAN_RX_BUFF_AND;
 }
+
 bool CANFD::rx(CANFD_Frame &rx_frame){
 	if(!rx_buff[tail].is_free){
 		rx_frame = rx_buff[tail];
@@ -67,7 +76,7 @@ bool CANFD::rx(CANFD_Frame &rx_frame){
 }
 
 //filter///////////////////////////////////////////////////////////////////////////////////
-void CANFD::set_filter_mask(uint32_t id,uint32_t mask,filter_mode mode,bool as_std){
+/*void CANFD::set_filter_mask(uint32_t id,uint32_t mask,filter_mode mode,bool as_std){
 	FDCAN_FilterTypeDef filter;
 	uint32_t filter_id;
 	uint32_t filter_mask;
