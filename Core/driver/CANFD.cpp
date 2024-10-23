@@ -1,5 +1,8 @@
+#include <string.h>
+
 #include "CANFD.hpp"
 #include "fdcan.h"
+
 
 CANFD *canfd;
 
@@ -7,7 +10,7 @@ void CANFD::init(){
 	if(HAL_FDCAN_Start(fdcan_)!= HAL_OK) {
 		Error_Handler();
 	}
-	if (HAL_FDCAN_ActivateNotification(fdcan_, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK) {
+	if (HAL_FDCAN_ActivateNotification(fdcan_, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
 	   /* Notification Error */
 	   Error_Handler();
 	}
@@ -59,6 +62,7 @@ void CANFD::rx_interrupt_task(void){
 
 	rx_buff[head].id = RxHeader.Identifier;
 	rx_buff[head].size = RxHeader.DataLength;
+	memcpy(&rx_buff[head].data, fdcan1RxData, 64);
 	rx_buff[head].is_free = false;
 
 	head = (head+1)&CAN_RX_BUFF_AND;

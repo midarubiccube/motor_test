@@ -77,6 +77,8 @@ int Application::Initilized()
 
 	CANFD_Frame test;
 	test.id=10;
+	test.size = 32;
+	memset(test.data, 0, 64);
 	canfd->tx(test);
 
 	pid1.set_limit(10, 900);
@@ -152,7 +154,13 @@ int Application::loop()
 		 __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, pwm);
 
 		 sprintf(usr_buf, "%d %d %d %d\n\r", encoder, encoder2, encoder3, encoder4);
-		 HAL_UART_Transmit(&huart1, (uint8_t *)usr_buf, strlen(usr_buf), 0xffff);
+		 //HAL_UART_Transmit(&huart1, (uint8_t *)usr_buf, strlen(usr_buf), 0xffff);
+		 if (canfd->rx_available()){
+			 CANFD_Frame can_frame;
+			 canfd->rx(can_frame);
+			 sprintf(usr_buf, "%d %d\n\r", can_frame.id, can_frame.size);
+			 HAL_UART_Transmit(&huart1, (uint8_t *)usr_buf, strlen(usr_buf), 0xffff);
+		 }
 		 HAL_Delay(10);
 	}
 }
